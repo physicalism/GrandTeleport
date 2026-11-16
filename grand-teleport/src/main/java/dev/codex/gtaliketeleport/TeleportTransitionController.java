@@ -12,6 +12,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance.Attenuation;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -82,6 +83,18 @@ public final class TeleportTransitionController {
    private static boolean previousHardCutCullingActive;
    private static boolean skipTravel;
    private static int skipTravelArrivalDelayTicks;
+   /** Teleport LOD bridge: extra hover ticks spent waiting for the destination before the zoom-in. */
+   private static int arrivalHoldTicks;
+   private static int destinationReadyTicks;
+   private static final int ARRIVAL_HOLD_MAX_TICKS = 80;
+   private static final int ARRIVAL_CHUNK_RADIUS = 3;
+   /** Chunks must be present this long first, so Sodium has a moment to build their meshes. */
+   private static final int DESTINATION_SETTLE_TICKS = 6;
+   /** DH counts as settled at or below this much queued LOD work (it is rarely exactly zero). */
+   private static final int DH_BACKLOG_READY = 4;
+   private static boolean lastChunksLoaded;
+   private static int lastDhBacklog = -1;
+   private static int maxDhBacklogSeen;
    private static float enterBodyTargetYaw;
    private static float enterBodyTargetPitch;
    private static int lastVisibilitySectionX = -2147483648;
@@ -143,6 +156,11 @@ public final class TeleportTransitionController {
          ticks = 0;
          skipTravel = shouldSkipTravelForTargetDimension(plannedTargetDimensionId);
          skipTravelArrivalDelayTicks = 0;
+         arrivalHoldTicks = 0;
+         destinationReadyTicks = 0;
+         lastChunksLoaded = false;
+         lastDhBacklog = -1;
+         maxDhBacklogSeen = 0;
          enterBodyTargetYaw = 0.0F;
          enterBodyTargetPitch = 0.0F;
          travelTicks = skipTravel ? 0 : calculateTravelTicks(startFeet, plannedTargetFeet);
@@ -155,6 +173,10 @@ public final class TeleportTransitionController {
          Screen currentScreen = client.gui == null ? null : client.gui.screen();
          if (currentScreen != null) {
             client.gui.setScreen((Screen)null);
+         }
+
+         if (stablePlannedTarget && plannedTarget != null) {
+            GtaLikeTeleportClientNetworking.sendPrepareDestination(plannedTarget, plannedTargetDimensionId);
          }
 
          client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
@@ -205,6 +227,12 @@ public final class TeleportTransitionController {
                }
 
                lastObservedPlayerFeet = playerFeet;
+               updateDestinationReadiness(client);
+               if (shouldHoldBeforeZoomIn()) {
+                  ++arrivalHoldTicks;
+                  ++totalTicks;
+               }
+
                if (!cameraReleased && ticks >= totalTicks) {
                   if (!commandSent) {
                      commandSent = true;
@@ -1108,7 +1136,7 @@ public final class TeleportTransitionController {
    }
 
    private static int getPushStartTick() {
-      return getTravelEndTick() + getPrePushWaitTicks() + (skipTravel ? skipTravelArrivalDelayTicks : 0);
+      return getTravelEndTick() + getPrePushWaitTicks() + (skipTravel ? skipTravelArrivalDelayTicks : 0) + arrivalHoldTicks;
    }
 
    private static int getPullMotionEndTick() {
@@ -1116,7 +1144,82 @@ public final class TeleportTransitionController {
    }
 
    private static int getPushMotionStartTick() {
-      return skipTravel ? getPushStartTick() : getTravelEndTick();
+      return skipTravel ? getPushStartTick() : getTravelEndTick() + arrivalHoldTicks;
+   }
+
+   private static void updateDestinationReadiness(Minecraft client) {
+      if (cameraReleased || ticks >= getPushMotionStartTick()) {
+         return;
+      }
+
+      lastChunksLoaded = actualTargetFeet != null && isDestinationTerrainLoaded(client);
+      lastDhBacklog = actualTargetFeet != null && isDistantHorizonsTerrainAvailable() ? DistantHorizonsCompat.getLodLoadBacklog() : -1;
+      if (lastDhBacklog >= 0) {
+         maxDhBacklogSeen = Math.max(maxDhBacklogSeen, lastDhBacklog);
+      }
+
+      boolean dhSettled = lastDhBacklog <= DH_BACKLOG_READY;
+      if (lastChunksLoaded && dhSettled) {
+         ++destinationReadyTicks;
+      } else {
+         destinationReadyTicks = 0;
+      }
+   }
+
+   private static void logZoomInRelease() {
+      if (arrivalHoldTicks > 0 || maxDhBacklogSeen > 0) {
+         System.out.println("[Grand Teleport] Zoom-in after " + arrivalHoldTicks + "/" + ARRIVAL_HOLD_MAX_TICKS
+            + " hold ticks: arrived=" + (actualTargetFeet != null) + " chunks=" + lastChunksLoaded
+            + " dhBacklog=" + lastDhBacklog + " (peak " + maxDhBacklogSeen + ")"
+            + (arrivalHoldTicks >= ARRIVAL_HOLD_MAX_TICKS ? " [cap reached]" : ""));
+      }
+   }
+
+   /**
+    * Teleport LOD bridge: on the last hover tick before the zoom-in, keep hovering while the
+    * player has not arrived yet or the destination chunks are not in, for at most 4 seconds.
+    * Cross-dimension (skip-travel) arrival is already handled by skipTravelArrivalDelayTicks.
+    */
+   private static boolean shouldHoldBeforeZoomIn() {
+      if (ticks != getPushMotionStartTick() - 1) {
+         return false;
+      } else {
+         boolean hold;
+         if (arrivalHoldTicks >= ARRIVAL_HOLD_MAX_TICKS) {
+            hold = false;
+         } else if (actualTargetFeet == null) {
+            hold = !skipTravel;
+         } else {
+            hold = destinationReadyTicks < DESTINATION_SETTLE_TICKS;
+         }
+
+         if (!hold) {
+            logZoomInRelease();
+         }
+
+         return hold;
+      }
+   }
+
+   private static boolean isDestinationTerrainLoaded(Minecraft client) {
+      Vec3 feet = getArrivalCameraFeet();
+      if (feet == null || client.level == null) {
+         return true;
+      } else {
+         int radius = Math.max(0, Math.min(ARRIVAL_CHUNK_RADIUS, client.options.getEffectiveRenderDistance() - 1));
+         int centreX = SectionPos.blockToSectionCoord(feet.x);
+         int centreZ = SectionPos.blockToSectionCoord(feet.z);
+
+         for(int dx = -radius; dx <= radius; ++dx) {
+            for(int dz = -radius; dz <= radius; ++dz) {
+               if (!client.level.getChunkSource().hasChunk(centreX + dx, centreZ + dz)) {
+                  return false;
+               }
+            }
+         }
+
+         return true;
+      }
    }
 
    private static int getEnterHoldStartTick() {
@@ -1314,6 +1417,9 @@ public final class TeleportTransitionController {
       hudSuppressed = false;
       previousHardCutCullingActive = false;
       skipTravel = false;
+      skipTravelArrivalDelayTicks = 0;
+      arrivalHoldTicks = 0;
+      destinationReadyTicks = 0;
       resetVisibilityRefreshState();
    }
 

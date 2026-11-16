@@ -68,3 +68,45 @@ This Gradle setup has not been run yet.
 
 `~/Desktop/Project/grand-teleport-26.3` is the upstream multi-version Grand Teleport repo
 (1.20.1–26.3) with the older client-only port. It is kept as it was.
+
+## Teleport LOD bridge (16 November 2026, untested in game)
+
+Goal: the destination a Grand Teleport cinematic shows should be loaded before the camera zooms
+in. All teleports, all players, with at most 4 s of extra wait.
+
+- **Server** (`DestinationPreloader`, `GtaLikeTeleportServer`): when a server-side teleport is
+  intercepted (`/tp` run by the server, warps, Waystones plates), the destination's chunks
+  start loading immediately with the vanilla `PORTAL` ticket (radius 4, expires by itself after
+  300 ticks). When the client confirms its zoom-out, the move is held until the load finishes,
+  for at most 80 ticks; the existing 200-tick safety timeout still applies.
+- **Client-started teleports** (typed commands, which bypass the server hold): the client sends
+  `gtalike_teleport:prepare_destination` at the start of the zoom-out. The server rate-limits
+  this per player (2 s for gamemasters, 5 s for others) and caps it at 8 preloads in flight
+  server-wide.
+- **Client** (`TeleportTransitionController`): before the zoom-in, the camera keeps hovering
+  until the player has arrived and the chunks within 3 of the arrival point have been present
+  for 6 ticks, for at most 80 ticks.
+- **lodbridge.2**: the hover before the zoom-in also waits for Distant Horizons to settle.
+  `DistantHorizonsCompat.getLodLoadBacklog()` reads, without changing anything, DH 3.3.4's
+  `LodQuadTree` retrieval queue, its sections waiting to reload, and GPU uploads in flight; at 4
+  or fewer queued items it counts as settled. If the probe can't find those internals it switches
+  itself off and only the chunk check applies. The same 80-tick cap still applies. Every
+  teleport logs `[Grand Teleport] Zoom-in after N/80 hold ticks …` (client) and
+  `Held teleport of … for N ticks …` (server).
+- Both directions are backward-compatible: either side without this build simply skips it.
+- Distant Horizons: DH 3.3.4 has no API to prioritise a region or push LODs to a client.
+  Clients request LODs around their own position and the server rejects out-of-range requests,
+  so DH detail at the destination still loads after arrival. Preloading the chunks should give
+  DH's server data a head start, but that's unverified. DH's own `/dh pregen`
+  (`PregenManager`) is the way to pre-build server LOD data for the play area.
+
+Test build: `build/offline/GrandTeleport-26.3-build252-rb-cinematic-terrain+lodbridge.1.jar`
+(version set at build time; `gradle.properties` unchanged).
+
+## GitHub history
+
+Hosted on the `realms-beyond-26.3` branch of the
+[Grand Teleport fork](https://github.com/physicalism/GrandTeleport).
+The original reconstruction commits remain intact. This branch has a separate
+root history from upstream; no history rewrite or synthetic merge was performed.
+The older client-only port is on `realms-client-26.3`.

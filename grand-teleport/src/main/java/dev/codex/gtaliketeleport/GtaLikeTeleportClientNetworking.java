@@ -49,6 +49,20 @@ final class GtaLikeTeleportClientNetworking {
 
    }
 
+   /** Teleport LOD bridge: ask the server to start loading the destination. Silently skipped on servers without it. */
+   static void sendPrepareDestination(Vec3 targetFeet, String dimensionId) {
+      if (targetFeet == null) {
+         return;
+      }
+
+      try {
+         if (ClientPlayNetworking.canSend(GtaLikeTeleportNetworkPayloads.PrepareDestinationPayload.TYPE)) {
+            ClientPlayNetworking.send(new GtaLikeTeleportNetworkPayloads.PrepareDestinationPayload(targetFeet.x, targetFeet.y, targetFeet.z, dimensionId == null ? "" : dimensionId));
+         }
+      } catch (IllegalArgumentException | IllegalStateException var3) {
+      }
+   }
+
    static Vec3 targetFeet(GtaLikeTeleportNetworkPayloads.StartServerTeleportPayload payload) {
       return new Vec3(payload.x(), payload.y(), payload.z());
    }

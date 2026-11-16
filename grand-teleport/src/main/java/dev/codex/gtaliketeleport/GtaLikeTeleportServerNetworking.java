@@ -21,6 +21,11 @@ final class GtaLikeTeleportServerNetworking {
             GtaLikeTeleportServer.markNextServerTeleportBypassed(context.player());
          });
       });
+      ServerPlayNetworking.registerGlobalReceiver(GtaLikeTeleportNetworkPayloads.PrepareDestinationPayload.TYPE, (payload, context) -> {
+         context.server().execute(() -> {
+            DestinationPreloader.handleClientRequest(context.player(), payload.x(), payload.y(), payload.z(), payload.dimension());
+         });
+      });
    }
 
    static boolean canSendStart(ServerPlayer player) {

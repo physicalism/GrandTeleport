@@ -20,6 +20,8 @@ import net.minecraft.world.phys.Vec3;
 public final class GtaLikeTeleportServer implements ModInitializer {
    private static final int BYPASS_TICKS = 20;
    private static final int ACK_TIMEOUT_TICKS = 200;
+   /** Teleport LOD bridge: longest a confirmed teleport waits for its destination to load (4 s). */
+   private static final int MAX_DESTINATION_HOLD_TICKS = 80;
    private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong(1L);
    private static final Map<UUID, Integer> bypassNextTeleportTicks = new HashMap();
    private static final Map<Long, PendingTeleport> pendingTeleports = new HashMap();
@@ -72,6 +74,8 @@ public final class GtaLikeTeleportServer implements ModInitializer {
       } else {
          long requestId = NEXT_REQUEST_ID.getAndIncrement();
          PendingTeleport pending = new PendingTeleport(requestId, player, source, action);
+         ServerLevel targetLevel = targetDimension == null ? player.level() : player.level().getServer().getLevel(targetDimension);
+         pending.preload = DestinationPreloader.start(player, targetLevel, targetFeet);
          pendingTeleports.put(requestId, pending);
          pendingPlayers.add(player.getUUID());
          GtaLikeTeleportServerNetworking.sendStart(player, requestId, source, targetFeet, targetDimension);
@@ -82,6 +86,13 @@ public final class GtaLikeTeleportServer implements ModInitializer {
    static void handleTeleportAck(ServerPlayer player, long requestId) {
       PendingTeleport pending = (PendingTeleport)pendingTeleports.get(requestId);
       if (pending != null && pending.player.getUUID().equals(player.getUUID())) {
+         if (pending.preload != null && !pending.preload.isReady()) {
+            // Teleport LOD bridge: the client has finished its zoom-out, but the destination is
+            // still loading. Hold the move; tickPendingTeleports commits it (capped).
+            pending.acked = true;
+            return;
+         }
+
          pendingTeleports.remove(requestId);
          pendingPlayers.remove(player.getUUID());
          runPendingTeleport(pending);
@@ -158,7 +169,17 @@ public final class GtaLikeTeleportServer implements ModInitializer {
       while(iterator.hasNext()) {
          PendingTeleport pending = (PendingTeleport)((Map.Entry)iterator.next()).getValue();
          ++pending.age;
-         if (pending.age > 200) {
+         if (pending.acked) {
+            ++pending.ackWait;
+         }
+
+         boolean destinationHoldOver = pending.acked && (pending.preload == null || pending.preload.isReady() || pending.ackWait >= MAX_DESTINATION_HOLD_TICKS);
+         if (destinationHoldOver || pending.age > 200) {
+            if (pending.acked) {
+               System.out.println("[Grand Teleport] Held teleport of " + pending.player.getScoreboardName() + " for " + pending.ackWait
+                  + " ticks waiting for destination chunks" + (pending.preload != null && pending.preload.isReady() ? "" : " (gave up, not ready)"));
+            }
+
             iterator.remove();
             pendingPlayers.remove(pending.player.getUUID());
             runPendingTeleport(pending);
@@ -179,6 +200,9 @@ public final class GtaLikeTeleportServer implements ModInitializer {
       private final int source;
       private final Runnable action;
       private int age;
+      private DestinationPreloader.Preload preload;
+      private boolean acked;
+      private int ackWait;
 
       private PendingTeleport(long requestId, ServerPlayer player, int source, Runnable action) {
          this.requestId = requestId;

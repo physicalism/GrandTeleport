@@ -19,6 +19,7 @@ final class GtaLikeTeleportNetworkPayloads {
          PayloadTypeRegistry.clientboundPlay().register(GtaLikeTeleportNetworkPayloads.StartServerTeleportPayload.TYPE, GtaLikeTeleportNetworkPayloads.StartServerTeleportPayload.CODEC);
          PayloadTypeRegistry.serverboundPlay().register(GtaLikeTeleportNetworkPayloads.ServerTeleportAckPayload.TYPE, GtaLikeTeleportNetworkPayloads.ServerTeleportAckPayload.CODEC);
          PayloadTypeRegistry.serverboundPlay().register(GtaLikeTeleportNetworkPayloads.BypassNextServerTeleportPayload.TYPE, GtaLikeTeleportNetworkPayloads.BypassNextServerTeleportPayload.CODEC);
+         PayloadTypeRegistry.serverboundPlay().register(GtaLikeTeleportNetworkPayloads.PrepareDestinationPayload.TYPE, GtaLikeTeleportNetworkPayloads.PrepareDestinationPayload.CODEC);
          registered = true;
       }
    }
@@ -110,6 +111,27 @@ final class GtaLikeTeleportNetworkPayloads {
    static record BypassNextServerTeleportPayload() implements CustomPacketPayload {
       static final CustomPacketPayload.Type<BypassNextServerTeleportPayload> TYPE = new CustomPacketPayload.Type(GtaLikeTeleportNetworkPayloads.id("bypass_next_server_teleport"));
       static final StreamCodec<RegistryFriendlyByteBuf, BypassNextServerTeleportPayload> CODEC = StreamCodec.unit(new BypassNextServerTeleportPayload());
+
+      public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+         return TYPE;
+      }
+   }
+
+   /** Teleport LOD bridge: client tells the server where a teleport it is about to send will land. */
+   static record PrepareDestinationPayload(double x, double y, double z, String dimension) implements CustomPacketPayload {
+      static final CustomPacketPayload.Type<PrepareDestinationPayload> TYPE = new CustomPacketPayload.Type<>(GtaLikeTeleportNetworkPayloads.id("prepare_destination"));
+      static final StreamCodec<RegistryFriendlyByteBuf, PrepareDestinationPayload> CODEC = StreamCodec.ofMember(PrepareDestinationPayload::write, PrepareDestinationPayload::read);
+
+      private void write(RegistryFriendlyByteBuf buffer) {
+         buffer.writeDouble(this.x);
+         buffer.writeDouble(this.y);
+         buffer.writeDouble(this.z);
+         buffer.writeUtf(this.dimension == null ? "" : this.dimension, 256);
+      }
+
+      private static PrepareDestinationPayload read(RegistryFriendlyByteBuf buffer) {
+         return new PrepareDestinationPayload(buffer.readDouble(), buffer.readDouble(), buffer.readDouble(), buffer.readUtf(256));
+      }
 
       public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
          return TYPE;
