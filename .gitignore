@@ -30,3 +30,6 @@ Thumbs.db
 .DS_Store
 node_modules/
 tools/node_modules/
+
+# Local 26.3 smoke-test client run
+test-run/
