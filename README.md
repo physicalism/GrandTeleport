@@ -1,3 +1,27 @@
+# Realms Beyond: Grand Teleport 26.3 client port
+
+This branch preserves the upstream Grand Teleport history and the local client-only
+`1.0.0+26.3` port. Upstream: [hookuru/GrandTeleport](https://github.com/hookuru/GrandTeleport).
+The separate `realms-beyond-26.3` branch contains the reconstructed later teleport
+suite and DH bridge; these are distinct histories and have not been merged.
+
+## Build the local client port
+
+Use Python 3, JDK 25 and Modrinth's installed Minecraft 26.3 / Fabric Loader 0.20.1,
+with Fabric API, Mod Menu and Sodium in the `Fabric Realm` profile:
+
+```sh
+python3 build-port.py
+python3 tools/smoke_port.py --transform-only
+```
+
+Set `JAVA_HOME`, `MODRINTH_META` and `MODS_DIR` for different installations.
+Outputs go to `build/libs/`; the port build excludes upstream custom audio.
+Transformation checks do not establish gameplay or shader rendering approval.
+Upstream instructions below describe the upstream versions and may differ from this port.
+
+---
+
 # Grand Teleport
 
 Grand Teleport adds a GTA-style cinematic camera transition to Minecraft
