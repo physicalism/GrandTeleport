@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "gtalike_teleport",
+  "version": "${version}",
+  "name": "Grand Teleport",
+  "description": "Grand Teleport with vanilla/Sodium terrain retained during DH cinematic travel and moderate route-flight pacing.",
+  "authors": [
+    "Codex"
+  ],
+  "contributors": [
+    "hookuru_"
+  ],
+  "icon": "assets/gtalike_teleport/icon.png",
+  "license": "Custom",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.codex.gtaliketeleport.GtaLikeTeleportServer"
+    ],
+    "client": [
+      "dev.codex.gtaliketeleport.GtaLikeTeleportClient"
+    ],
+    "modmenu": [
+      "dev.codex.gtaliketeleport.GtaLikeTeleportModMenu"
+    ]
+  },
+  "mixins": [
+    "gtalike_teleport.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

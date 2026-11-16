@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "gtp_dh_bridge",
+  "version": "${version}",
+  "name": "Grand Teleport – Distant Horizons Bridge",
+  "description": "Conservative: camera-relative DH geometry, safe overdraw adjustment, optional temporary zero GPU-upload delay, without extreme geometry-quality overrides.",
+  "authors": [
+    "Realms Beyond compatibility experiment"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.realm.gtpdhbridge.GtpDhBridgeClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabric-lifecycle-events-v1": "*",
+    "gtalike_teleport": "*",
+    "distanthorizons": "3.3.4"
+  }
+}

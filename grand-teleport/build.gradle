@@ -1,0 +1,11 @@
+version = rootProject.grand_teleport_version
+base.archivesName = "GrandTeleport-26.3"
+
+dependencies {
+    compileOnly installedMod("sodium-fabric-*.jar")
+    compileOnly installedMod("modmenu-*.jar")
+}
+
+jar {
+    archiveFileName = "GrandTeleport-${project.version}.jar"
+}

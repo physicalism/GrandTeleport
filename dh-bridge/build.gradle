@@ -1,0 +1,9 @@
+version = rootProject.dh_bridge_version
+base.archivesName = "GrandTeleport-DHBridge"
+
+// Distant Horizons and Grand Teleport are reached only through reflection,
+// so neither is needed at compile time.
+
+jar {
+    archiveFileName = "GrandTeleport-DHBridge-v${project.version}.jar"
+}

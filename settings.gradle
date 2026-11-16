@@ -1,0 +1,10 @@
+pluginManagement {
+    repositories {
+        maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "realms-beyond-teleport"
+include "grand-teleport", "dh-bridge"

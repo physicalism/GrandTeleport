@@ -1,0 +1,47 @@
+plugins {
+    id "net.fabricmc.fabric-loom" version "1.19.4" apply false
+}
+
+def modsDir = file((project.property("rb_mods_dir") as String).replaceFirst("^~", System.getProperty("user.home")))
+
+subprojects {
+    apply plugin: "net.fabricmc.fabric-loom"
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+    }
+
+    ext.installedMod = { String pattern ->
+        def matches = fileTree(modsDir) { include pattern }
+        if (matches.isEmpty()) {
+            throw new GradleException("No ${pattern} in ${modsDir}; set -Prb_mods_dir")
+        }
+        return matches
+    }
+
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(rootProject.java_version as int)
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.release = rootProject.java_version as int
+        options.encoding = "UTF-8"
+    }
+
+    processResources {
+        def props = [version: project.version]
+        inputs.properties props
+        filesMatching("fabric.mod.json") { expand props }
+    }
+
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+}

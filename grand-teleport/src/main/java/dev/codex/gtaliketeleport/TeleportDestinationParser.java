@@ -1,0 +1,110 @@
+package dev.codex.gtaliketeleport;
+
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
+
+final class TeleportDestinationParser {
+   private TeleportDestinationParser() {
+   }
+
+   static Vec3 parse(String command, LocalPlayer player) {
+      String argumentString = TeleportCommandMatcher.getArgumentString(command);
+      if (argumentString != null && !argumentString.isBlank()) {
+         String[] args = argumentString.split("\\s+");
+         if (args.length >= 3 && areCoordinateTriple(args, 0)) {
+            return readCoordinateTriple(args, 0, player);
+         } else if (args.length >= 4 && areCoordinateTriple(args, 1)) {
+            return readCoordinateTriple(args, 1, player);
+         } else {
+            for(int i = 0; i <= args.length - 3; ++i) {
+               if (areCoordinateTriple(args, i)) {
+                  return readCoordinateTriple(args, i, player);
+               }
+            }
+
+            return null;
+         }
+      } else {
+         return null;
+      }
+   }
+
+   static boolean usesRelativeCoordinates(String command) {
+      String argumentString = TeleportCommandMatcher.getArgumentString(command);
+      if (argumentString != null && !argumentString.isBlank()) {
+         String[] args = argumentString.split("\\s+");
+         if (args.length >= 3 && areCoordinateTriple(args, 0)) {
+            return hasRelativeCoordinate(args, 0);
+         } else if (args.length >= 4 && areCoordinateTriple(args, 1)) {
+            return hasRelativeCoordinate(args, 1);
+         } else {
+            for(int i = 0; i <= args.length - 3; ++i) {
+               if (areCoordinateTriple(args, i)) {
+                  return hasRelativeCoordinate(args, i);
+               }
+            }
+
+            return false;
+         }
+      } else {
+         return false;
+      }
+   }
+
+   static String parseDimension(String command) {
+      if (command != null && !command.isBlank()) {
+         String[] args = command.trim().split("\\s+");
+
+         for(int i = 0; i < args.length - 1; ++i) {
+            if (args[i].equalsIgnoreCase("in")) {
+               return DimensionIds.normalize(args[i + 1]);
+            }
+         }
+
+         return null;
+      } else {
+         return null;
+      }
+   }
+
+   private static boolean areCoordinateTriple(String[] args, int start) {
+      return isCoordinate(args[start]) && isCoordinate(args[start + 1]) && isCoordinate(args[start + 2]);
+   }
+
+   private static boolean hasRelativeCoordinate(String[] args, int start) {
+      return args[start].startsWith("~") || args[start + 1].startsWith("~") || args[start + 2].startsWith("~");
+   }
+
+   private static Vec3 readCoordinateTriple(String[] args, int start, LocalPlayer player) {
+      return new Vec3(readCoordinate(args[start], player.getX()), readCoordinate(args[start + 1], player.getY()), readCoordinate(args[start + 2], player.getZ()));
+   }
+
+   private static boolean isCoordinate(String token) {
+      if (!token.isEmpty() && token.charAt(0) != '^') {
+         if (token.charAt(0) != '~') {
+            return isDouble(token);
+         } else {
+            return token.length() == 1 || isDouble(token.substring(1));
+         }
+      } else {
+         return false;
+      }
+   }
+
+   private static double readCoordinate(String token, double base) {
+      if (token.charAt(0) == '~') {
+         return token.length() == 1 ? base : base + Double.parseDouble(token.substring(1));
+      } else {
+         return Double.parseDouble(token);
+      }
+   }
+
+   private static boolean isDouble(String value) {
+      try {
+         Double.parseDouble(value);
+         return true;
+      } catch (NumberFormatException var2) {
+         return false;
+      }
+   }
+}
