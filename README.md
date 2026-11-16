@@ -29,9 +29,11 @@ Verification done when this was set up:
 - `dh-bridge`: recompiled (javac 21) and compared with `javap`: identical class set and
   identical field/method signatures. Bytecode differs only in local-variable slots and jump
   offsets.
-- `grand-teleport`: decompiled with no decompiler failure markers; class set matches the JAR
-  (38 top-level classes, including 15 client and 2 common mixins). **Not yet compiled**: no build machine
-  had Minecraft 26.3 and JDK 25 available. Run the check below.
+- `grand-teleport`: five decompiler artefacts fixed by hand (see Git history; the
+  snap-offset fix was checked against the original bytecode).
+- 16 November 2026, on Henry's Mac (JDK 25): `build-offline.py --verify` printed `MATCH` for
+  both mods (56 and 2 classes). That compares every class, field and method signature and
+  every resource hash. Method bodies are recompiled, not byte-identical.
 
 ## Building
 
