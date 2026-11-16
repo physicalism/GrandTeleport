@@ -18,7 +18,7 @@ public abstract class ServerPlayerMixin {
       cancellable = true
    )
    private void gtalikeTeleport$delayExternalTeleport(ServerLevel level, double x, double y, double z, Set<Relative> relatives, float yaw, float pitch, boolean resetCamera, CallbackInfoReturnable<Boolean> cir) {
-      if (GtaLikeTeleportServer.tryDelayExternalTeleport((ServerPlayer)this, level, x, y, z, relatives, yaw, pitch, resetCamera)) {
+      if (GtaLikeTeleportServer.tryDelayExternalTeleport((ServerPlayer)(Object)this, level, x, y, z, relatives, yaw, pitch, resetCamera)) {
          cir.setReturnValue(true);
       }
 

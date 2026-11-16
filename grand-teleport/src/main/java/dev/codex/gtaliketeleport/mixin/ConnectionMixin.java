@@ -17,7 +17,7 @@ public abstract class ConnectionMixin {
       cancellable = true
    )
    private void gtalikeTeleport$interceptTeleportPacket(Packet<?> packet, ChannelFutureListener listener, boolean flush, CallbackInfo ci) {
-      if (!GtaLikeTeleportClient.interceptOutgoingPacket((Connection)this, packet, listener, flush)) {
+      if (!GtaLikeTeleportClient.interceptOutgoingPacket((Connection)(Object)this, packet, listener, flush)) {
          ci.cancel();
       }
 

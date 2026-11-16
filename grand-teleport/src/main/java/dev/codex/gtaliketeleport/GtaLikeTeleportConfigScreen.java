@@ -1693,11 +1693,11 @@ final class GtaLikeTeleportConfigScreen extends Screen {
 
          int distance;
          while(var9.hasNext()) {
-            distance = (Integer)var9.next();
-            int distance = Math.abs(distance - anchor);
+            int target = (Integer)var9.next();
+            distance = Math.abs(target - anchor);
             if (distance < bestDistance) {
                bestDistance = distance;
-               bestOffset = distance - anchor;
+               bestOffset = target - anchor;
             }
          }
 

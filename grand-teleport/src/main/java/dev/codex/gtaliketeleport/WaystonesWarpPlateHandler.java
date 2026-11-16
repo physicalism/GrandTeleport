@@ -76,7 +76,9 @@ public final class WaystonesWarpPlateHandler {
       try {
          Object result = target.getClass().getMethod("getDimension").invoke(target);
          if (result instanceof ResourceKey<?> key) {
-            return key;
+            @SuppressWarnings("unchecked")
+            ResourceKey<Level> levelKey = (ResourceKey<Level>)key;
+            return levelKey;
          }
       } catch (ClassCastException | ReflectiveOperationException var5) {
       }

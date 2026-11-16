@@ -21,7 +21,7 @@ public abstract class CameraMixin {
          CameraAccessor accessor = (CameraAccessor)this;
          accessor.gtalikeTeleport$setPosition(frame.pos());
          accessor.gtalikeTeleport$setRotation(frame.yaw(), frame.pitch());
-         accessor.gtalikeTeleport$prepareCullFrustum(((Camera)this).getViewRotationMatrix(new Matrix4f()), accessor.gtalikeTeleport$createProjectionMatrixForCulling(), frame.pos());
+         accessor.gtalikeTeleport$prepareCullFrustum(((Camera)(Object)this).getViewRotationMatrix(new Matrix4f()), accessor.gtalikeTeleport$createProjectionMatrixForCulling(), frame.pos());
          TeleportTransitionController.requestTerrainVisibilityUpdate(frame.pos());
       }
    }
